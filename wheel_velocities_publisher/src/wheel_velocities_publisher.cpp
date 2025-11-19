@@ -15,8 +15,8 @@ public:
   }
 
   void execute_commands() {
-    const float speed = 1.0f;
-    const double delay_sec = 5.0;
+    const float speed = 4.0f;
+    const double delay_sec = 3.0;
     rclcpp::Rate rate(1.0 / delay_sec); // Frequency = 1 / delay sec
 
     // front left and rare right (1,-1) vector | wheel 1 and wheel 3
@@ -35,7 +35,7 @@ public:
     rate.sleep();
 
     // Right
-    publish_command({speed, -speed, speed, -speed}, "Move Left");
+    publish_command({speed, -speed, speed, -speed}, "Move Right");
     rate.sleep();
 
     // Turn Clockwise
@@ -76,8 +76,6 @@ int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
   auto wheel_velocities_node = std::make_shared<WheelVelocitiesPublisher>();
   wheel_velocities_node->execute_commands();
-  rclcpp::spin_some(
-      wheel_velocities_node); // Allow time for publishing before shutdown.
   rclcpp::shutdown();
   return 0;
 }
