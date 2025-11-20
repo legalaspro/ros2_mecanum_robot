@@ -95,6 +95,11 @@ public:
         std::make_shared<rclcpp::Rate>(50);        // 50 Hz for control loop
     log_rate_ = std::make_shared<rclcpp::Rate>(2); // 2 Hz for debug logging
 
+    // Precompute inverse kinematics matrix (4x3 for wheels x twist)
+    const double L = half_wheel_base_ + half_track_width_;
+    inv_kin_mat_ << -L, 1.0, -1.0, L, 1.0, 1.0, L, 1.0, -1.0, -L, 1.0, 1.0;
+    inv_kin_mat_ /= wheel_radius_; // Scale by 1/R
+
     RCLCPP_INFO(this->get_logger(), "Eight Trajectory Node ready!");
   }
 
@@ -122,6 +127,9 @@ private:
   double angular_kp_;
   double max_angular_vel_;
   double max_linear_vel_;
+
+  Eigen::Matrix<double, 4, 3>
+      inv_kin_mat_; // Precomputed inverse kinematics matrix
 
   void odom_callback(const nav_msgs::msg::Odometry::SharedPtr msg) {
     current_x_ = msg->pose.pose.position.x;
@@ -200,10 +208,13 @@ private:
       // Compute Body Frame twist
       double w_z, v_x, v_y;
       std::tie(w_z, v_x, v_y) =
-          world_to_body_twist(w_world_z, v_world_x, v_world_y);
+          world_to_body_twist_eigen(w_world_z, v_world_x, v_world_y);
+      //    std::tie(w_z, v_x, v_y) = world_to_body_twist(w_world_z, v_world_x,
+      //     v_world_y);
 
       // Compute and publish wheel speed
-      std::vector<float> wheel_speeds = twist_to_wheels(w_z, v_x, v_y);
+      //   std::vector<float> wheel_speeds = twist_to_wheels(w_z, v_x, v_y);
+      std::vector<float> wheel_speeds = twist_to_wheels_eigen(w_z, v_x, v_y);
       publish_wheel_speeds(wheel_speeds);
 
       RCLCPP_DEBUG(this->get_logger(),
@@ -238,6 +249,31 @@ private:
     float u3 = (1.0 / R) * (L * w_z + v_x - v_y);
     float u4 = (1.0 / R) * (-L * w_z + v_x + v_y);
     return {u1, u2, u3, u4};
+  }
+
+  std::tuple<double, double, double>
+  world_to_body_twist_eigen(double dphi, double dx, double dy) {
+
+    // Use Eigen for rotation matrix
+    Eigen::Matrix3d rot;
+    rot << 1, 0, 0, 0, std::cos(current_yaw_), std::sin(current_yaw_), 0,
+        -std::sin(current_yaw_), std::cos(current_yaw_);
+    Eigen::Vector3d v_world(dphi, dx, dy);
+    Eigen::Vector3d v_body = rot * v_world;
+
+    double w_z = v_body(0);
+    double v_x = v_body(1);
+    double v_y = v_body(2);
+
+    return {w_z, v_x, v_y};
+  }
+
+  std::vector<float> twist_to_wheels_eigen(double w_z, double v_x, double v_y) {
+    Eigen::Vector3d twist(w_z, v_x, v_y);
+    Eigen::Vector4d u = inv_kin_mat_ * twist;
+
+    return {static_cast<float>(u(0)), static_cast<float>(u(1)),
+            static_cast<float>(u(2)), static_cast<float>(u(3))};
   }
 
   void publish_wheel_speeds(const std::vector<float> &wheel_speeds) {
