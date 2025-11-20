@@ -79,7 +79,7 @@ private:
 
     cmd_vel_publisher_->publish(cmd);
 
-    RCLCPP_INFO(
+    RCLCPP_DEBUG(
         this->get_logger(),
         "Published chassis planar twist (v_x, v_y, w_z) = (%.3f, %.3f, %.3f)",
         v_x, v_y, w_z);
