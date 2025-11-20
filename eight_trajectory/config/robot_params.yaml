@@ -1,0 +1,14 @@
+/**:
+  ros__parameters:
+    wheel_radius: 0.05
+    wheel_base: 0.17
+    track_width: 0.26969
+
+eight_trajectory:
+  ros__parameters:
+    max_linear_vel: 0.5
+    max_angular_vel: 0.5
+    linear_kp: 2.5
+    angular_kp: 2.0
+    linear_tolerance: 0.01
+    angular_tolerance: 0.01
